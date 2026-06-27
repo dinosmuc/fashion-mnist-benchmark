@@ -1,0 +1,21 @@
+# Byte-compiled / cached
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Virtual environment
+.venv/
+
+# Dataset (auto-downloaded)
+data/
+
+# Generated artifacts: figures, saved models, metric tables
+outputs/
+
+# MLflow run store
+mlruns/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
