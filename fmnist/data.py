@@ -32,7 +32,3 @@ def get_numpy_data(root=DATA_ROOT):
     y_test = test_dataset.targets.numpy()
 
     return X_train, y_train, X_test, y_test
-
-
-if __name__ == "__main__":
-    pass
