@@ -1,7 +1,11 @@
+from pathlib import Path
+
 from torchvision import datasets, transforms
 
+DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
 
-def get_dataset(root="../data"):
+
+def get_dataset(root=DATA_ROOT):
     """Retruns train and test data set as tensors - for CNN"""
 
     # Creating an instance of ToTensor class
@@ -14,7 +18,7 @@ def get_dataset(root="../data"):
     return train_dataset, test_dataset
 
 
-def get_numpy_data(root="../data", val_size=0.2, random_state=42):
+def get_numpy_data(root=DATA_ROOT):
     """Returns (X_train, y_train, X_test, y_test) as flat Numpy arrays - for random forest"""
 
     # Tuple unpacking to get the dataset as tensors
