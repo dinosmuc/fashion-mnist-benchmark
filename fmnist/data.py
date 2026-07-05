@@ -4,6 +4,8 @@ from torchvision import datasets, transforms
 
 DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
 
+CLASS_NAMES = ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat", "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
+
 
 def get_dataset(root=DATA_ROOT):
     """Retruns train and test data set as tensors - for CNN"""
