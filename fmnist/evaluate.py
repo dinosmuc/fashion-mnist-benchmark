@@ -9,6 +9,14 @@ from fmnist.data import CLASS_NAMES
 OUTPUT_ROOT = Path(__file__).resolve().parents[1] / "outputs"
 
 
+def _cm_path(model_name, split_name, output_dir=OUTPUT_ROOT):
+    return output_dir / "figures" / f"cm_{model_name}_{split_name}.png"
+
+
+def _metrics_path(model_name, split_name, output_dir=OUTPUT_ROOT):
+    return output_dir / "tables" / f"metrics_{model_name}_{split_name}.csv"
+
+
 def evaluate_split(y_true, y_pred, model_name, split_name, output_dir=OUTPUT_ROOT):
     """Confusion matrix (PNG) + per-class precision/recall (CSV) for one
     model on one split. Returns (cm, metrics_df)."""
@@ -26,7 +34,7 @@ def evaluate_split(y_true, y_pred, model_name, split_name, output_dir=OUTPUT_ROO
     disp.plot(ax=ax, cmap=plt.cm.Blues, colorbar=False, xticks_rotation=45)
 
     ax.set_title(f"{model_name} - {split_name} set")
-    fig.savefig(fig_dir / f"cm_{model_name}_{split_name}.png", dpi=150, bbox_inches="tight")
+    fig.savefig(_cm_path(model_name, split_name, output_dir), dpi=150, bbox_inches="tight")
     plt.close(fig)
 
     report = classification_report(
@@ -34,6 +42,11 @@ def evaluate_split(y_true, y_pred, model_name, split_name, output_dir=OUTPUT_ROO
     )
 
     metrics_df = pd.DataFrame(report).T
-    metrics_df.to_csv(tab_dir / f"metrics_{model_name}_{split_name}.csv")
+    metrics_df.to_csv(_metrics_path(model_name, split_name, output_dir))
 
     return cm, metrics_df
+
+
+def evaluation_artifacts(model_name, splits=("train", "test"), output_dir=OUTPUT_ROOT):
+    """Paths of the files evaluate_split wrote for one model."""
+    return [p(model_name, s, output_dir) for s in splits for p in (_cm_path, _metrics_path)]
