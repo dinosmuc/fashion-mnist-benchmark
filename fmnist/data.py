@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
@@ -34,3 +35,15 @@ def get_numpy_data(root=DATA_ROOT):
     y_test = test_dataset.targets.numpy()
 
     return X_train, y_train, X_test, y_test
+
+
+def get_dataloaders(batch_size=128, root=DATA_ROOT):
+    """Returns train_loader and test_loader for the PyTorch models"""
+
+    train_dataset, test_dataset = get_dataset(root)
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
+
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
+
+    return train_loader, test_loader

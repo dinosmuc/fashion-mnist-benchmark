@@ -1,6 +1,10 @@
 """MLflow tracking helpers"""
 
+from pathlib import Path
+
 import mlflow
+
+MLRUNS_DIR = Path(__file__).resolve().parents[1] / "mlruns"
 
 EXPERIMENT_NAME = "fashion-mnist"
 
@@ -8,6 +12,7 @@ EXPERIMENT_NAME = "fashion-mnist"
 def log_run(run_name: str, params: dict, metrics: dict, artifacts=None, experiment=EXPERIMENT_NAME):
     """Log one completed experiment to MLflow"""
 
+    mlflow.set_tracking_uri(MLRUNS_DIR.as_uri())
     mlflow.set_experiment(experiment)
 
     with mlflow.start_run(run_name=run_name) as run:
