@@ -20,3 +20,4 @@ mlflow.db
 .DS_Store
 .idea/
 .vscode/
+mlartifacts/

@@ -1,24 +1,33 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from sklearn.metrics import ConfusionMatrixDisplay, classification_report, confusion_matrix
 
-from fmnist.data import CLASS_NAMES
+from .data import CLASS_NAMES
 
 OUTPUT_ROOT = Path(__file__).resolve().parents[1] / "outputs"
 
 
-def _cm_path(model_name, split_name, output_dir=OUTPUT_ROOT):
+def _cm_path(model_name: str, split_name: str, output_dir: Path = OUTPUT_ROOT) -> Path:
+    """Path of the confusion matrix figure for one model on one split."""
     return output_dir / "figures" / f"cm_{model_name}_{split_name}.png"
 
 
-def _metrics_path(model_name, split_name, output_dir=OUTPUT_ROOT):
+def _metrics_path(model_name: str, split_name: str, output_dir: Path = OUTPUT_ROOT) -> Path:
+    """Path of the per-class metrics table for one model on one split."""
     return output_dir / "tables" / f"metrics_{model_name}_{split_name}.csv"
 
 
-def evaluate_split(y_true, y_pred, model_name, split_name, output_dir=OUTPUT_ROOT):
-    """Confusion matrix (PNG) + per-class precision/recall (CSV) for one
+def evaluate_split(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    model_name: str,
+    split_name: str,
+    output_dir: Path = OUTPUT_ROOT,
+) -> tuple[np.ndarray, pd.DataFrame]:
+    """Writes the confusion matrix (PNG) and per-class precision/recall (CSV) for one
     model on one split. Returns (cm, metrics_df)."""
 
     fig_dir = output_dir / "figures"
@@ -47,6 +56,10 @@ def evaluate_split(y_true, y_pred, model_name, split_name, output_dir=OUTPUT_ROO
     return cm, metrics_df
 
 
-def evaluation_artifacts(model_name, splits=("train", "test"), output_dir=OUTPUT_ROOT):
+def evaluation_artifacts(
+    model_name: str,
+    splits: tuple[str, ...] = ("train", "test"),
+    output_dir: Path = OUTPUT_ROOT,
+) -> list[Path]:
     """Paths of the files evaluate_split wrote for one model."""
     return [p(model_name, s, output_dir) for s in splits for p in (_cm_path, _metrics_path)]

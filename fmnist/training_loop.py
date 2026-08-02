@@ -1,13 +1,24 @@
 """Reusable training loop code"""
 
+import time
+
+import numpy as np
 import torch
 
+from .data import SEED
 from .early_stopping import EarlyStopping
 
 PATIENCE = 3
 DELTA = 0.001
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def set_seed(seed: int = SEED) -> None:
+    """Fixes the seeds so that results are reproducible."""
+
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 
 def train_step(
@@ -15,11 +26,15 @@ def train_step(
     data_loader: torch.utils.data.DataLoader,
     loss_fn: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
-    device: torch.device = device,
-):
+    device: torch.device = DEVICE,
+) -> float:
+    """One pass over data_loader that backpropagates and updates the weights.
+
+    Returns the average batch loss.
+    """
+
     train_loss = 0.0
     model.train()
-    model.to(device)
 
     # Training process
     for X, y in data_loader:
@@ -37,69 +52,98 @@ def train_step(
 
         optimizer.step()
 
-    # Calculating loss per epoch and printing what is happening
-    train_loss /= len(data_loader)
-    print(f"Train Loss: {train_loss:.5f}")
-    return train_loss
+    return train_loss / len(data_loader)
 
 
-def test_step(
+def eval_step(
     model: torch.nn.Module,
     data_loader: torch.utils.data.DataLoader,
     loss_fn: torch.nn.Module,
-    early_stopping: EarlyStopping = None,
-    device: torch.device = device,
-):
+    device: torch.device = DEVICE,
+) -> float:
+    """One pass over data_loader with gradients disabled, leaving the weights untouched.
 
-    test_loss = 0
+    Returns the average batch loss.
+    """
+
+    eval_loss = 0.0
     model.eval()
-    model.to(device)
 
     with torch.inference_mode():
         for X, y in data_loader:
             X, y = X.to(device), y.to(device)
+            eval_loss += loss_fn(model(X), y).item()
 
-            y_test_pred = model(X)
+    return eval_loss / len(data_loader)
 
-            loss = loss_fn(y_test_pred, y)
 
-            test_loss += loss.item()
+def train_model(
+    model: torch.nn.Module,
+    train_loader: torch.utils.data.DataLoader,
+    val_loader: torch.utils.data.DataLoader,
+    loss_fn: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    epochs: int,
+    early_stopping: EarlyStopping | None = None,
+    device: torch.device = DEVICE,
+) -> tuple[torch.nn.Module, dict[str, list[float]], float]:
+    """Trains with early stopping on the validation split.
 
-        # Avarage test loss per epoch
-        test_loss /= len(data_loader)
-
-        # Check early stopping condition if provided
-        if early_stopping is not None:
-            early_stopping.check_early_stop(test_loss)
-
-        print(f"Test Loss: {test_loss:.5f}")
-        return test_loss
-
-def train_model(model: torch.nn.Module,
-                train_loader: torch.utils.data.DataLoader,
-                test_loader: torch.utils.data.DataLoader,
-                loss_fn: torch.nn.Module,
-                optimizer: torch.optim.Optimizer,
-                epochs: int,
-                early_stopping: EarlyStopping=None,
-                device: torch.device=device):
+    Returns (model, history, train_time). The returned model carries the weights
+    of the best validation epoch.
+    """
 
     if early_stopping is None:
         early_stopping = EarlyStopping(patience=PATIENCE, delta=DELTA, verbose=True)
 
-    history = {"train_loss": [], "test_loss": []}
+    model.to(device)
+    history: dict[str, list[float]] = {"train_loss": [], "val_loss": []}
 
-    for epoch in range(epochs):
-        print(f"Epoch: {epoch + 1} / {epochs}")
+    start = time.perf_counter()
 
+    for epoch in range(1, epochs + 1):
         train_loss = train_step(model, train_loader, loss_fn, optimizer, device=device)
-        test_loss = test_step(model, test_loader, loss_fn, early_stopping=early_stopping, device=device)
+        val_loss = eval_step(model, val_loader, loss_fn, device=device)
+
+        print(f"Epoch {epoch}/{epochs} | train loss {train_loss:.5f} | val loss {val_loss:.5f}")
 
         history["train_loss"].append(train_loss)
-        history["test_loss"].append(test_loss)
+        history["val_loss"].append(val_loss)
+
+        early_stopping.check_early_stop(val_loss, model=model, epoch=epoch)
 
         if early_stopping.stop_training:
-            print(f"Early stopping triggered after epoch {epoch + 1}")
+            print(f"Early stopping triggered after epoch {epoch}")
             break
 
-    return model, history
+    if device.type == "cuda":
+        torch.cuda.synchronize()
+    train_time = time.perf_counter() - start
+
+    early_stopping.restore_best(model)
+
+    return model, history, train_time
+
+
+def predict(
+    model: torch.nn.Module,
+    data_loader: torch.utils.data.DataLoader,
+    device: torch.device = DEVICE,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Runs model over data_loader.
+
+    Returns (y_true, y_pred) as NumPy arrays in the form evaluate_split expects.
+    """
+
+    model.eval()
+    model.to(device)
+
+    y_true, y_pred = [], []
+
+    with torch.inference_mode():
+        for X, y in data_loader:
+            logits = model(X.to(device))
+            y_pred.append(logits.argmax(dim=1).cpu())
+            y_true.append(y)
+
+    return torch.cat(y_true).numpy(), torch.cat(y_pred).numpy()
