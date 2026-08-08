@@ -15,10 +15,16 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def set_seed(seed: int = SEED) -> None:
-    """Fixes the seeds so that results are reproducible."""
+    """
+    Fixes the seeds so that results are reproducible.
+    cuDNN picks convolution algorithms non-deterministically by default, which
+    is enough to change CNN results between runs, so that is disabled too.
+    """
 
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def train_step(
